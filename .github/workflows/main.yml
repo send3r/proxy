@@ -1,10 +1,10 @@
-name: Temporary SOCKS5 Proxy (ngrok TCP + Chisel)
+name: Free SOCKS5 Proxy (Cloudflare + Chisel)
 
 on:
   workflow_dispatch:
     inputs:
       duration:
-        description: 'Proxy süresi (1h, 2h, 4h, 6h)'
+        description: 'Proxy süresi (1h / 2h / 4h / 6h)'
         required: true
         default: '2h'
 
@@ -19,32 +19,21 @@ jobs:
           gzip -d chisel.gz
           sudo mv chisel /usr/local/bin/chisel
           chmod +x /usr/local/bin/chisel
-          echo "✅ Chisel installed: $(chisel --version)"
 
-      - name: Install ngrok
+      - name: Install cloudflared
         run: |
-          curl -sSL https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
-          echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
-          sudo apt update && sudo apt install -y ngrok
-          echo "✅ ngrok installed: $(ngrok --version)"
+          wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O cloudflared
+          chmod +x cloudflared
+          sudo mv cloudflared /usr/local/bin/
 
-      - name: Configure ngrok & Start Proxy
-        env:
-          NGROK_AUTHTOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
+      - name: Start SOCKS5 + Cloudflare Tunnel
         run: |
-          if [ -z "$NGROK_AUTHTOKEN" ]; then
-            echo "❌ HATA: NGROK_AUTH_TOKEN secret'i eklenmemiş!"
-            echo "Lütfen GitHub repo → Settings → Secrets and variables → Actions → New repository secret oluştur."
-            exit 1
-          fi
-
-          echo "🔑 ngrok authtoken ayarlanıyor..."
-          ngrok config add-authtoken $NGROK_AUTHTOKEN
-
-          # Chisel SOCKS5'i arka planda başlat
+          # Chisel SOCKS5 server başlat
           chisel server --socks5 --port 1080 > chisel.log 2>&1 &
-          echo "✅ Chisel SOCKS5 server başlatıldı (port 1080)"
+          echo "✅ Chisel SOCKS5 server running on 1080"
 
-          echo "🚀 ngrok TCP tunnel başlatılıyor..."
-          echo "=== Proxifier için bilgileri bekle ==="
-          timeout ${{ github.event.inputs.duration }} ngrok tcp 1080
+          echo "🚀 Cloudflare Tunnel başlatılıyor..."
+          echo "Proxifier için bilgileri bekleyin..."
+
+          # Cloudflare tunnel (rastgele subdomain verecek)
+          timeout ${{ github.event.inputs.duration }} cloudflared tunnel --url tcp://localhost:1080 --no-autoupdate
