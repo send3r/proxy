@@ -1,4 +1,4 @@
-name: SOCKS5 Proxy (Pinggy)
+name: SOCKS5 Proxy (Pinggy TCP)
 
 on:
   workflow_dispatch:
@@ -13,22 +13,22 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Install Chisel (SOCKS5)
+      - name: Install Chisel
         run: |
           wget -q https://github.com/jpillora/chisel/releases/latest/download/chisel_1.11.5_linux_amd64.gz -O chisel.gz
           gzip -d chisel.gz
           sudo mv chisel /usr/local/bin/
           chmod +x /usr/local/bin/chisel
 
-      - name: Start SOCKS5 + Pinggy Tunnel
+      - name: Start SOCKS5 + Pinggy TCP Tunnel
         run: |
           chisel server --socks5 --port 1080 > chisel.log 2>&1 &
           sleep 3
-          echo "✅ Chisel SOCKS5 aktif (1080)"
+          echo "✅ Chisel SOCKS5 aktif"
 
-          echo "🌐 Pinggy TCP Tunnel başlatılıyor..."
+          echo "🌐 Pinggy TCP Tunnel başlatılıyor (TCP modu)..."
           echo "=================================================="
-          echo "Proxifier IP:PORT bilgisini bekle:"
+          echo "Proxifier için TCP adresi ve Port'u bekle:"
           echo "=================================================="
 
-          timeout ${{ github.event.inputs.duration }} ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=30 -p 443 -R0:127.0.0.1:1080 a.pinggy.io
+          timeout ${{ github.event.inputs.duration }} ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=30 -p 443 -R0:127.0.0.1:1080 tcp@a.pinggy.io
