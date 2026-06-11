@@ -1,10 +1,10 @@
-name: Temporary SOCKS5 Proxy (ngrok TCP)
+name: Temporary SOCKS5 Proxy (ngrok TCP + Chisel)
 
 on:
   workflow_dispatch:
     inputs:
       duration:
-        description: 'Proxy ne kadar açık kalsın? (örnek: 2h, 4h)'
+        description: 'Proxy ne kadar açık kalsın? (1h, 2h, 4h, 6h)'
         required: true
         default: '2h'
 
@@ -13,26 +13,30 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Install chisel (SOCKS5 server)
+      - name: Install Chisel (SOCKS5)
         run: |
-          wget https://github.com/jpillora/chisel/releases/latest/download/chisel_1.9.1_linux_amd64.gz
-          gzip -d chisel_1.9.1_linux_amd64.gz
-          sudo mv chisel_1.9.1_linux_amd64 /usr/local/bin/chisel
+          # En güncel versiyonu dinamik olarak indir
+          wget -q https://github.com/jpillora/chisel/releases/latest/download/chisel_1.11.5_linux_amd64.gz -O chisel.gz
+          gzip -d chisel.gz
+          sudo mv chisel /usr/local/bin/chisel
           chmod +x /usr/local/bin/chisel
+          echo "Chisel installed: $(chisel --version)"
 
-      - name: Start SOCKS5 + ngrok TCP Tunnel
+      - name: Start SOCKS5 Proxy + ngrok Tunnel
         env:
           NGROK_AUTHTOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
         run: |
-          # Arka planda chisel SOCKS5 server başlat
+          # Chisel SOCKS5 server'ı arka planda başlat
           chisel server --socks5 --port 1080 > chisel.log 2>&1 &
-          
-          # ngrok TCP tunnel başlat (1080 portunu dışarı açar)
+          echo "Chisel SOCKS5 server started on port 1080"
+
+          # ngrok TCP tunnel başlat
           curl -sSL https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
           echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
-          sudo apt update && sudo apt install ngrok
-          
+          sudo apt update && sudo apt install -y ngrok
+
           ngrok config add-authtoken $NGROK_AUTHTOKEN
-          
-          echo "=== Proxy başlıyor ==="
+
+          echo "=== SOCKS5 Proxy başlıyor ==="
+          echo "Proxifier'da kullanmak için logları takip et"
           timeout ${{ github.event.inputs.duration }} ngrok tcp 1080
