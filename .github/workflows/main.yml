@@ -1,10 +1,10 @@
-name: SOCKS5 Proxy (Cloudflare + Chisel)
+name: SOCKS5 Proxy (Pinggy)
 
 on:
   workflow_dispatch:
     inputs:
       duration:
-        description: 'Proxy süresi (1h, 2h, 3h, 4h)'
+        description: 'Proxy süresi (1h, 2h, 3h)'
         required: true
         default: '2h'
 
@@ -13,29 +13,24 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Install Chisel & cloudflared
+      - name: Install Chisel (SOCKS5)
         run: |
-          # Chisel (SOCKS5)
           wget -q https://github.com/jpillora/chisel/releases/latest/download/chisel_1.11.5_linux_amd64.gz -O chisel.gz
           gzip -d chisel.gz
           sudo mv chisel /usr/local/bin/
           chmod +x /usr/local/bin/chisel
 
-          # cloudflared
-          wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O /usr/local/bin/cloudflared
-          chmod +x /usr/local/bin/cloudflared
-
-      - name: Start SOCKS5 Proxy
+      - name: Start SOCKS5 + Pinggy Tunnel
         run: |
-          echo "🚀 Chisel SOCKS5 server başlatılıyor..."
+          # Chisel SOCKS5 server başlat
           chisel server --socks5 --port 1080 > chisel.log 2>&1 &
           sleep 3
-          echo "✅ Chisel SOCKS5 aktif (port 1080)"
+          echo "✅ Chisel SOCKS5 aktif"
 
-          echo ""
-          echo "🌐 Cloudflare Tunnel başlatılıyor..."
+          echo "🌐 Pinggy TCP Tunnel başlatılıyor..."
           echo "=================================================="
-          echo "AŞAĞIDAKİ SATIRLARI BUL VE KOPYALA:"
+          echo "Proxifier için IP ve PORT'u aşağıda göreceksin:"
           echo "=================================================="
 
-          timeout ${{ github.event.inputs.duration }} cloudflared tunnel --url tcp://localhost:1080 --no-autoupdate --loglevel info
+          # Pinggy ile TCP tunnel (ücretsiz, 60 dk'ya kadar)
+          timeout ${{ github.event.inputs.duration }} ssh -p 443 -R0:localhost:1080 a.pinggy.io
