@@ -1,39 +1,30 @@
-name: Free SOCKS5 Proxy (Cloudflare + Chisel)
+name: SOCKS5 Proxy (Cloudflare)
 
 on:
   workflow_dispatch:
     inputs:
       duration:
-        description: 'Proxy süresi (1h / 2h / 4h / 6h)'
+        description: 'Çalışma süresi'
         required: true
         default: '2h'
 
 jobs:
   proxy:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Install Chisel
+      - name: Install Tools
         run: |
           wget -q https://github.com/jpillora/chisel/releases/latest/download/chisel_1.11.5_linux_amd64.gz -O chisel.gz
-          gzip -d chisel.gz
-          sudo mv chisel /usr/local/bin/chisel
-          chmod +x /usr/local/bin/chisel
+          gzip -d chisel.gz && sudo mv chisel /usr/local/bin/ && chmod +x /usr/local/bin/chisel
 
-      - name: Install cloudflared
+          wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O /usr/local/bin/cloudflared
+          chmod +x /usr/local/bin/cloudflared
+
+      - name: Start Proxy
         run: |
-          wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O cloudflared
-          chmod +x cloudflared
-          sudo mv cloudflared /usr/local/bin/
+          chisel server --socks5 --port 1080 > /dev/null 2>&1 &
+          echo "✅ SOCKS5 Proxy (1080) aktif"
 
-      - name: Start SOCKS5 + Cloudflare Tunnel
-        run: |
-          # Chisel SOCKS5 server başlat
-          chisel server --socks5 --port 1080 > chisel.log 2>&1 &
-          echo "✅ Chisel SOCKS5 server running on 1080"
-
-          echo "🚀 Cloudflare Tunnel başlatılıyor..."
-          echo "Proxifier için bilgileri bekleyin..."
-
-          # Cloudflare tunnel (rastgele subdomain verecek)
-          timeout ${{ github.event.inputs.duration }} cloudflared tunnel --url tcp://localhost:1080 --no-autoupdate
+          echo "🌐 Cloudflare Tunnel Başlıyor..."
+          echo "--------------------------------------------------"
+          timeout ${{ github.event.inputs.duration }} cloudflared tunnel --url tcp://localhost:1080 --no-autoupdate --log-level info
