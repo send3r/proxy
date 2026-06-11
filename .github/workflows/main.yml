@@ -22,15 +22,13 @@ jobs:
 
       - name: Start SOCKS5 + Pinggy Tunnel
         run: |
-          # Chisel SOCKS5 server başlat
           chisel server --socks5 --port 1080 > chisel.log 2>&1 &
           sleep 3
-          echo "✅ Chisel SOCKS5 aktif"
+          echo "✅ Chisel SOCKS5 aktif (1080)"
 
           echo "🌐 Pinggy TCP Tunnel başlatılıyor..."
           echo "=================================================="
-          echo "Proxifier için IP ve PORT'u aşağıda göreceksin:"
+          echo "Proxifier IP:PORT bilgisini bekle:"
           echo "=================================================="
 
-          # Pinggy ile TCP tunnel (ücretsiz, 60 dk'ya kadar)
-          timeout ${{ github.event.inputs.duration }} ssh -p 443 -R0:localhost:1080 a.pinggy.io
+          timeout ${{ github.event.inputs.duration }} ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=30 -p 443 -R0:127.0.0.1:1080 a.pinggy.io
