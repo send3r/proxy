@@ -1,0 +1,38 @@
+name: Temporary SOCKS5 Proxy (ngrok TCP)
+
+on:
+  workflow_dispatch:
+    inputs:
+      duration:
+        description: 'Proxy ne kadar açık kalsın? (örnek: 2h, 4h)'
+        required: true
+        default: '2h'
+
+jobs:
+  proxy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install chisel (SOCKS5 server)
+        run: |
+          wget https://github.com/jpillora/chisel/releases/latest/download/chisel_1.9.1_linux_amd64.gz
+          gzip -d chisel_1.9.1_linux_amd64.gz
+          sudo mv chisel_1.9.1_linux_amd64 /usr/local/bin/chisel
+          chmod +x /usr/local/bin/chisel
+
+      - name: Start SOCKS5 + ngrok TCP Tunnel
+        env:
+          NGROK_AUTHTOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
+        run: |
+          # Arka planda chisel SOCKS5 server başlat
+          chisel server --socks5 --port 1080 > chisel.log 2>&1 &
+          
+          # ngrok TCP tunnel başlat (1080 portunu dışarı açar)
+          curl -sSL https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
+          echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
+          sudo apt update && sudo apt install ngrok
+          
+          ngrok config add-authtoken $NGROK_AUTHTOKEN
+          
+          echo "=== Proxy başlıyor ==="
+          timeout ${{ github.event.inputs.duration }} ngrok tcp 1080
